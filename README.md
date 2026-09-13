@@ -13,7 +13,7 @@ All computation runs locally in the visitor's browser — no data are transmitte
 ## Files
 
 - `index.html` — calculator UI (English / 中文)
-- `model.part1.js`, `model.part2.js` — model data (gzip-compressed binary forest) loaded by `index.html`
+- `model.part1.js` … `model.part24.js` — model data (gzip-compressed binary forest, base64-encoded and split into 24 chunks for reliable delivery) loaded in order by `index.html`
 
 The calculator is also distributed as a standalone single HTML file (see releases / manuscript supplementary material), which can be opened offline or hosted on any web server as-is.
 
