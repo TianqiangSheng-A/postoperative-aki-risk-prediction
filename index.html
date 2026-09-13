@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Postoperative AKI Risk Calculator — Cardiac Valve Repair | 心脏瓣膜修复术后急性肾损伤风险计算器</title>
+<meta name="description" content="Random-forest prediction of acute kidney injury after cardiac valve repair surgery from nine routine preoperative variables. Multicentre development with external validation.">
+<style>
+:root{
+  --paper:#fbf8f2;
+  --card:#fffdf9;
+  --ink:#102726;
+  --ink-soft:#3d4f4e;
+  --teal-deep:#032625;
+  --teal:#165451;
+  --teal-mid:#2a827e;
+  --aqua:#adefed;
+  --line:#e4ddcd;
+  --line-strong:#cfc5ae;
+  --low:#2a827e;
+  --high:#b0452f;
+  --warn-bg:#fdf3e7;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{
+  font-family:"Helvetica Neue",Helvetica,Arial,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  background:var(--paper);color:var(--ink);line-height:1.55;
+}
+.mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,"Courier New",monospace}
+.topbar{
+  background:var(--teal-deep);color:#e8f4f3;
+  padding:10px 20px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;
+}
+.topbar .tag{font-size:12.5px;letter-spacing:.04em;opacity:.85}
+.langswitch{display:flex;border:1px solid rgba(173,239,237,.4);border-radius:3px;overflow:hidden}
+.langswitch button{
+  background:transparent;border:0;color:#cfe9e7;font-size:12.5px;padding:5px 14px;cursor:pointer;
+  font-family:inherit;letter-spacing:.03em;transition:background .2s,color .2s;
+}
+.langswitch button.on{background:var(--aqua);color:var(--teal-deep);font-weight:700}
+.wrap{max-width:1080px;margin:0 auto;padding:28px 20px 60px}
+header.hero{margin-bottom:26px}
+header.hero h1{font-size:clamp(21px,3.2vw,30px);line-height:1.25;color:var(--teal-deep);font-weight:800;letter-spacing:.01em}
+header.hero .zh-sub{font-size:15px;color:var(--teal);font-weight:600;margin-top:4px}
+header.hero .meta{margin-top:10px;font-size:13px;color:var(--ink-soft);max-width:70ch}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 370px;gap:22px;align-items:start}
+@media (max-width:880px){.layout{grid-template-columns:1fr}}
+.panel{background:var(--card);border:1px solid var(--line);padding:22px 22px 18px}
+.panel h2{
+  font-size:13px;text-transform:uppercase;letter-spacing:.12em;color:var(--teal);
+  padding-bottom:10px;margin-bottom:6px;border-bottom:1px solid var(--line);font-weight:800;
+}
+.field{padding:12px 0;border-bottom:1px dashed var(--line)}
+.field:last-child{border-bottom:0}
+.f-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:8px}
+.f-name{font-size:14.5px;font-weight:700}
+.f-name .zh{font-weight:500;color:var(--ink-soft);font-size:12.5px;margin-left:7px}
+.f-unit{font-size:12px;color:var(--ink-soft);white-space:nowrap}
+.f-ctl{display:flex;align-items:center;gap:12px}
+input[type=range]{flex:1;min-width:0;accent-color:var(--teal);height:22px;cursor:pointer}
+input[type=number]{
+  width:96px;flex:none;font:inherit;font-size:14.5px;font-weight:700;color:var(--ink);
+  padding:7px 8px;border:1.5px solid var(--line-strong);border-radius:2px;background:#fff;text-align:right;
+  transition:border-color .2s,box-shadow .2s;
+}
+input[type=number]:focus{outline:0;border-color:var(--teal);box-shadow:0 0 0 3px rgba(22,84,81,.22)}
+input[type=number].oob{border-color:var(--high);background:var(--warn-bg)}
+.f-range{font-size:11px;color:var(--ink-soft);margin-top:5px}
+.f-range .ref{opacity:.85}
+.result-col{position:sticky;top:18px}
+@media (max-width:880px){.result-col{position:static}}
+.risk-big{display:flex;align-items:baseline;gap:6px;margin:6px 0 2px}
+.risk-num{font-size:56px;font-weight:800;line-height:1;letter-spacing:-.01em;transition:color .3s}
+.risk-pct{font-size:24px;font-weight:700;color:var(--ink-soft)}
+.risk-label{font-size:15px;font-weight:800;margin:6px 0 2px;transition:color .3s}
+.risk-note{font-size:12.5px;color:var(--ink-soft);min-height:2.6em}
+.gauge{height:14px;border-radius:5px;background:#eee7d8;position:relative;margin:26px 0 8px;overflow:visible}
+.gauge .fill{height:100%;border-radius:5px;width:0%;transition:width .5s ease-in-out,background .3s}
+.gauge .tick{position:absolute;top:-6px;bottom:-6px;width:2px;background:var(--ink);left:28.99%}
+.gauge .tick-lab{position:absolute;top:-24px;left:28.99%;transform:translateX(-50%);font-size:10.5px;color:var(--ink);white-space:nowrap;font-weight:700}
+.gauge-scale{display:flex;justify-content:space-between;font-size:10.5px;color:var(--ink-soft);margin-top:4px}
+.btns{display:flex;gap:10px;margin-top:16px}
+.btns button{
+  flex:1;padding:11px 0;font:inherit;font-size:13.5px;font-weight:700;letter-spacing:.04em;cursor:pointer;
+  border-radius:3px;transition:background .2s,color .2s,border-color .2s;
+}
+#btn-calc{background:var(--teal);color:#eafaf9;border:1.5px solid var(--teal)}
+#btn-calc:hover{background:var(--teal-deep)}
+#btn-reset{background:transparent;color:var(--teal);border:1.5px solid var(--line-strong)}
+#btn-reset:hover{border-color:var(--teal)}
+.model-facts{margin-top:18px;border-top:1px solid var(--line);padding-top:14px}
+.model-facts h3{font-size:11.5px;text-transform:uppercase;letter-spacing:.12em;color:var(--teal);margin-bottom:8px;font-weight:800}
+.model-facts table{width:100%;border-collapse:collapse;font-size:12.5px}
+.model-facts td{padding:4px 0;border-bottom:1px dashed var(--line);vertical-align:top}
+.model-facts td:last-child{text-align:right;font-weight:700;white-space:nowrap;padding-left:10px}
+.howto{margin-top:22px;font-size:13px;color:var(--ink-soft)}
+.howto h3{font-size:11.5px;text-transform:uppercase;letter-spacing:.12em;color:var(--teal);margin-bottom:8px;font-weight:800}
+.howto li{margin:0 0 6px 18px}
+footer{margin-top:34px;border-top:1px solid var(--line);padding-top:16px;font-size:12px;color:var(--ink-soft)}
+footer .disc{font-weight:700;color:var(--high);margin-bottom:6px}
+footer p{margin-bottom:5px;max-width:90ch}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="tag" data-i="tag">Multicentre prediction model · cardiac valve repair surgery · postoperative AKI</span>
+  <div class="langswitch" role="group" aria-label="language">
+    <button id="lang-en" class="on" type="button">EN</button>
+    <button id="lang-zh" type="button">中文</button>
+  </div>
+</div>
+<div class="wrap">
+  <header class="hero">
+    <h1 data-i="title">Postoperative Acute Kidney Injury Risk Calculator</h1>
+    <div class="zh-sub" data-i="subtitle">Cardiac valve repair surgery · nine preoperative predictors · Platt-calibrated random forest</div>
+    <div class="meta" data-i="meta"></div>
+  </header>
+
+  <div class="layout">
+    <section class="panel" aria-label="inputs">
+      <h2 data-i="inputs">Preoperative variables</h2>
+      <div id="fields"></div>
+    </section>
+
+    <aside class="result-col">
+      <section class="panel" aria-label="result">
+        <h2 data-i="result">Predicted risk</h2>
+        <div class="risk-big">
+          <span class="risk-num mono" id="risk-num">–</span><span class="risk-pct">%</span>
+        </div>
+        <div class="risk-label" id="risk-label"></div>
+        <div class="risk-note" id="risk-note"></div>
+        <div class="gauge" aria-hidden="true">
+          <div class="fill" id="gauge-fill"></div>
+          <div class="tick"></div>
+          <span class="tick-lab" id="tick-lab">threshold 0.29</span>
+        </div>
+        <div class="gauge-scale"><span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span></div>
+        <div class="btns">
+          <button id="btn-reset" type="button" data-i="reset">Reset</button>
+          <button id="btn-calc" type="button" data-i="calc">Calculate</button>
+        </div>
+        <div class="model-facts">
+          <h3 data-i="perf">Model performance</h3>
+          <table>
+            <tr><td data-i="m1">Internal test AUC (n = 138)</td><td class="mono">0.770</td></tr>
+            <tr><td data-i="m2">External validation AUC (n = 166, two centres)</td><td class="mono">0.732 (95% CI 0.647–0.813)</td></tr>
+            <tr><td data-i="m3">Brier score (test / external)</td><td class="mono">0.176 / 0.174</td></tr>
+            <tr><td data-i="m4">Sensitivity · NPV at the 0.29 threshold (external)</td><td class="mono">0.761 · 0.863</td></tr>
+          </table>
+        </div>
+      </section>
+      <div class="howto">
+        <h3 data-i="howto">How to use</h3>
+        <ul>
+          <li data-i="h1"></li>
+          <li data-i="h2"></li>
+          <li data-i="h3"></li>
+        </ul>
+      </div>
+    </aside>
+  </div>
+
+  <footer>
+    <p class="disc" data-i="disc"></p>
+    <p data-i="src"></p>
+  </footer>
+</div>
+
+<script src="model.part1.js"></script>
+<script src="model.part2.js"></script>
+<script>
+"use strict";
+async function decodeModel(b64){
+  const bin=atob(b64);
+  const gz=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) gz[i]=bin.charCodeAt(i);
+  const stream=new Blob([gz]).stream().pipeThrough(new DecompressionStream("gzip"));
+  const bytes=new Uint8Array(await new Response(stream).arrayBuffer());
+  const dv=new DataView(bytes.buffer);
+  const trees=[]; let off=0;
+  while(off<bytes.length){
+    const n=dv.getUint16(off,true); off+=2;
+    const f=new Uint8Array(n),l=new Uint8Array(n),r=new Uint8Array(n);
+    const th=new Float32Array(n),p=new Float32Array(n);
+    for(let i=0;i<n;i++){f[i]=bytes[off+3*i];l[i]=bytes[off+3*i+1];r[i]=bytes[off+3*i+2];}
+    off+=3*n;
+    for(let i=0;i<n;i++){
+      if(f[i]===255){p[i]=dv.getUint16(off+4*i,true)/65535;}
+      else{th[i]=dv.getFloat32(off+4*i,true);}
+    }
+    off+=4*n;
+    trees.push({f,l,r,th,p});
+  }
+  return {trees:trees,a:0.934069,b:-0.636154,youden:0.289902};
+}
+let MODEL = null;
+decodeModel(window.__AKI_PARTS.join("")).then(m=>{MODEL=m;render();});
+let A=0.934069, B=-0.636154, YOUDEN=0.289902;
+
+/* feature index: 0 D-dimer, 1 NT-proBNP, 2 age, 3 neutrophil, 4 fibrinogen,
+   5 uric acid, 6 creatinine, 7 gamma-GT, 8 hs-cTnI */
+const FIELDS = [
+ {id:"age",   idx:2, en:"Age",                    zh:"年龄",               unitEn:"years",  unitZh:"岁",     min:13, max:90,  step:1,    def:56,   dec:0, ref:"13–84"},
+ {id:"neu",   idx:3, en:"Neutrophil count",       zh:"中性粒细胞绝对值",    unitEn:"×10⁹/L", unitZh:"×10⁹/L",min:0.5,max:20,  step:0.1,  def:4.1,  dec:1, ref:"1.2–14.6"},
+ {id:"ddimer",idx:0, en:"Plasma D-dimer",         zh:"血浆 D-二聚体",       unitEn:"μg/mL",  unitZh:"μg/mL", min:0,  max:20,  step:0.01, def:0.29, dec:2, ref:"0–20.5"},
+ {id:"fib",   idx:4, en:"Fibrinogen",             zh:"血浆纤维蛋白原",      unitEn:"g/L",    unitZh:"g/L",   min:1,  max:9,   step:0.01, def:2.78, dec:2, ref:"1.3–8.9"},
+ {id:"ntprobnp",idx:1,en:"NT-proBNP",             zh:"N 末端 B 型利钠肽原", unitEn:"pg/mL",  unitZh:"pg/mL", min:10, max:5000,step:1,    def:267,  dec:0, ref:"11–26 314"},
+ {id:"tni",   idx:8, en:"hs-cTnI",                zh:"高敏肌钙蛋白 I",      unitEn:"ng/mL",  unitZh:"ng/mL", min:0,  max:0.85,step:0.001,def:0.009,dec:3, ref:"0–0.83"},
+ {id:"ggt",   idx:7, en:"γ-Glutamyltransferase",  zh:"γ-谷氨酰转移酶",     unitEn:"U/L",    unitZh:"U/L",   min:5,  max:300, step:1,    def:25,   dec:0, ref:"5–771"},
+ {id:"uric",  idx:5, en:"Serum uric acid",        zh:"血清尿酸",            unitEn:"μmol/L", unitZh:"μmol/L",min:100,max:900, step:1,    def:360,  dec:0, ref:"142–880"},
+ {id:"crea",  idx:6, en:"Serum creatinine",       zh:"血清肌酐",            unitEn:"μmol/L", unitZh:"μmol/L",min:30, max:500, step:1,    def:75,   dec:0, ref:"34–834"}
+];
+
+const I18N = {
+ en:{
+  tag:"Multicentre prediction model · cardiac valve repair surgery · postoperative AKI",
+  title:"Postoperative Acute Kidney Injury Risk Calculator",
+  subtitle:"Cardiac valve repair surgery · nine preoperative predictors · Platt-calibrated random forest",
+  meta:"Random-forest model (500 trees) developed in 686 patients and externally validated in 166 patients from two independent centres. Enter the nine most recent preoperative values; the predicted probability updates instantly and is computed entirely in your browser — no data are transmitted or stored.",
+  inputs:"Preoperative variables", result:"Predicted risk of postoperative AKI",
+  reset:"Reset", calc:"Calculate", perf:"Model performance",
+  m1:"Internal test AUC (n = 138)", m2:"External validation AUC (n = 166, two centres)",
+  m3:"Brier score (test / external)", m4:"Sensitivity · NPV at the 0.29 threshold (external)",
+  howto:"How to use",
+  h1:"Enter each value with the slider or the numeric box; units follow the source laboratory reports.",
+  h2:"The gauge marks the Youden-derived threshold (0.29): probabilities at or above it flag higher-risk patients.",
+  h3:"At this threshold the model rules out AKI with a negative predictive value of 0.86–0.88 and detects 76–79% of cases.",
+  low:"Lower risk — below the 0.29 threshold",
+  high:"Higher risk — at or above the 0.29 threshold",
+  noteLow:"Below-threshold results identify candidates for standard perioperative care (NPV 0.86–0.88).",
+  noteHigh:"Above-threshold results warrant intensified monitoring and preventive strategies (sensitivity 0.76–0.79).",
+  range:"Observed range in the study cohorts: ",
+  disc:"For research and educational use only — not a substitute for clinical judgement.",
+  src:"Developed from a multicentre retrospective study of cardiac valve repair surgery (derivation cohort n = 686; external validation cohort n = 166). Predictors: age, neutrophil count, plasma D-dimer, fibrinogen, NT-proBNP, hs-cTnI, γ-GT, serum uric acid and serum creatinine.",
+  incomplete:"Enter all nine values to obtain a prediction."
+ },
+ zh:{
+  tag:"多中心预测模型 · 心脏瓣膜修复手术 · 术后急性肾损伤",
+  title:"心脏瓣膜修复术后急性肾损伤风险计算器",
+  subtitle:"九项术前预测因子 · Platt 校准随机森林（500 棵树）",
+  meta:"该随机森林模型在 686 例患者中构建，并在来自两家独立中心的 166 例患者中完成外部验证。输入九项最近一次术前检查值，预测概率即时更新；全部计算在您的浏览器本地完成，不传输、不存储任何数据。",
+  inputs:"术前指标", result:"术后 AKI 预测风险",
+  reset:"重置", calc:"计算", perf:"模型性能",
+  m1:"内部测试集 AUC（n = 138）", m2:"外部验证 AUC（n = 166，两家中心）",
+  m3:"Brier 评分（测试集 / 外部验证）", m4:"0.29 阈值下的敏感度 · 阴性预测值（外部）",
+  howto:"使用说明",
+  h1:"可用滑杆或数字框输入各指标数值，单位与检验报告一致。",
+  h2:"刻度条标记 Youden 指数最佳阈值（0.29）：概率 ≥ 该阈值提示高风险。",
+  h3:"该阈值下模型阴性预测值为 0.86–0.88，可检出 76–79% 的 AKI 病例。",
+  low:"低风险 — 低于 0.29 阈值",
+  high:"高风险 — 达到或超过 0.29 阈值",
+  noteLow:"低于阈值提示可按常规围手术期管理（阴性预测值 0.86–0.88）。",
+  noteHigh:"达到或超过阈值建议加强监测并采取预防性措施（敏感度 0.76–0.79）。",
+  range:"研究队列实测范围：",
+  disc:"仅供科研与教学使用，不能替代临床判断。",
+  src:"本模型基于心脏瓣膜修复手术多中心回顾性研究构建（衍生队列 n = 686；外部验证队列 n = 166）。预测因子：年龄、中性粒细胞绝对值、血浆 D-二聚体、纤维蛋白原、NT-proBNP、高敏肌钙蛋白 I、γ-谷氨酰转移酶、血清尿酸、血清肌酐。",
+  incomplete:"请填写全部九项指标以获得预测结果。"
+ }
+};
+let LANG = "en";
+
+function rawProb(v){
+  let s = 0;
+  const T = MODEL.trees;
+  for(let k=0;k<T.length;k++){
+    const t = T[k];
+    let n = 0;
+    while(t.f[n] !== 255){
+      n = (Math.fround(v[t.f[n]]) <= t.th[n]) ? t.l[n] : t.r[n];
+    }
+    s += t.p[n];
+  }
+  return s/T.length;
+}
+function predict(v){
+  const p = Math.min(1-1e-6, Math.max(1e-6, rawProb(v)));
+  const logit = Math.log(p/(1-p));
+  return 1/(1+Math.exp(-(A*logit+B)));
+}
+
+/* build fields */
+const fieldsEl = document.getElementById("fields");
+FIELDS.forEach(f=>{
+  const div = document.createElement("div");
+  div.className = "field";
+  div.innerHTML =
+    '<div class="f-top"><span class="f-name"><span data-fen="'+f.id+'">'+f.en+'</span><span class="zh" data-fzh="'+f.id+'">'+f.zh+'</span></span>'+
+    '<span class="f-unit" data-funit="'+f.id+'">'+f.unitEn+'</span></div>'+
+    '<div class="f-ctl"><input type="range" id="r-'+f.id+'" min="'+f.min+'" max="'+f.max+'" step="'+f.step+'" value="'+f.def+'">'+
+    '<input type="number" id="n-'+f.id+'" min="'+f.min+'" max="'+f.max+'" step="'+f.step+'" value="'+f.def+'"></div>'+
+    '<div class="f-range"><span class="ref" data-i="range"></span><span class="mono">'+f.ref+'</span></div>';
+  fieldsEl.appendChild(div);
+});
+
+function readValues(){
+  const v = new Array(9).fill(NaN);
+  let ok = true;
+  FIELDS.forEach(f=>{
+    const el = document.getElementById("n-"+f.id);
+    const x = parseFloat(el.value);
+    if(!isFinite(x)){ ok = false; return; }
+    v[f.idx] = x;
+    el.classList.toggle("oob", x < f.min || x > f.max);
+  });
+  return ok ? v : null;
+}
+
+function render(){
+  if(!MODEL) return;
+  const dict = I18N[LANG];
+  const v = readValues();
+  const numEl = document.getElementById("risk-num");
+  const labEl = document.getElementById("risk-label");
+  const noteEl = document.getElementById("risk-note");
+  const fill = document.getElementById("gauge-fill");
+  if(!v){
+    numEl.textContent = "–"; numEl.style.color = "var(--ink-soft)";
+    labEl.textContent = dict.incomplete; labEl.style.color = "var(--ink-soft)";
+    noteEl.textContent = ""; fill.style.width = "0%";
+    return;
+  }
+  const p = predict(v), pct = p*100;
+  const high = p >= YOUDEN;
+  const col = high ? "var(--high)" : "var(--low)";
+  numEl.textContent = pct.toFixed(1); numEl.style.color = col;
+  labEl.textContent = high ? dict.high : dict.low; labEl.style.color = col;
+  noteEl.textContent = high ? dict.noteHigh : dict.noteLow;
+  fill.style.width = Math.min(100,pct) + "%";
+  fill.style.background = col;
+}
+
+function applyLang(){
+  const dict = I18N[LANG];
+  document.querySelectorAll("[data-i]").forEach(el=>{
+    const k = el.getAttribute("data-i");
+    if(dict[k] !== undefined) el.textContent = dict[k];
+  });
+  FIELDS.forEach(f=>{
+    document.querySelector('[data-fen="'+f.id+'"]').textContent = LANG==="en" ? f.en : f.zh;
+    document.querySelector('[data-fzh="'+f.id+'"]').textContent = LANG==="en" ? f.zh : f.en;
+    document.querySelector('[data-funit="'+f.id+'"]').textContent = LANG==="en" ? f.unitEn : f.unitZh;
+  });
+  document.getElementById("lang-en").classList.toggle("on", LANG==="en");
+  document.getElementById("lang-zh").classList.toggle("on", LANG==="zh");
+  document.documentElement.lang = LANG==="en" ? "en" : "zh-CN";
+  render();
+}
+
+FIELDS.forEach(f=>{
+  const r = document.getElementById("r-"+f.id), n = document.getElementById("n-"+f.id);
+  r.addEventListener("input", ()=>{ n.value = r.value; n.classList.remove("oob"); render(); });
+  n.addEventListener("input", ()=>{
+    const x = parseFloat(n.value);
+    if(isFinite(x) && x>=f.min && x<=f.max) r.value = x;
+    render();
+  });
+});
+document.getElementById("btn-reset").addEventListener("click", ()=>{
+  FIELDS.forEach(f=>{
+    document.getElementById("r-"+f.id).value = f.def;
+    const n = document.getElementById("n-"+f.id);
+    n.value = f.def; n.classList.remove("oob");
+  });
+  render();
+});
+document.getElementById("btn-calc").addEventListener("click", render);
+document.getElementById("lang-en").addEventListener("click", ()=>{ LANG="en"; applyLang(); });
+document.getElementById("lang-zh").addEventListener("click", ()=>{ LANG="zh"; applyLang(); });
+applyLang();
+</script>
+</body>
+</html>

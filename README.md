@@ -1,6 +1,6 @@
 # Postoperative AKI Risk Prediction
 
-A single-file, browser-based risk calculator for **acute kidney injury (AKI) after cardiac valve repair surgery**, embedding the random-forest model from our multicentre study (500 trees, 9 preoperative predictors, Platt-calibrated).
+A browser-based risk calculator for **acute kidney injury (AKI) after cardiac valve repair surgery**, embedding the random-forest model from our multicentre study (500 trees, 9 preoperative predictors, Platt-calibrated).
 
 ## Use online
 
@@ -12,10 +12,10 @@ All computation runs locally in the visitor's browser — no data are transmitte
 
 ## Files
 
-- `index.html` — calculator UI (English/中文)
-- `model.part1.js`, `model.part2.js`, `model.part3.js` — embedded model data loaded by `index.html`
+- `index.html` — calculator UI (English / 中文)
+- `model.part1.js`, `model.part2.js` — model data (gzip-compressed binary forest) loaded by `index.html`
 
-The UI together with the model parts can also be downloaded and opened offline, or hosted on any web server as-is.
+The calculator is also distributed as a standalone single HTML file (see releases / manuscript supplementary material), which can be opened offline or hosted on any web server as-is.
 
 ## Model
 
